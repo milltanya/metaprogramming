@@ -17,7 +17,7 @@ concept AggregateConstructibleFrom = requires(Args... args) {
 template <class Type, size_t FieldIndex>
 struct TagField {
     friend constexpr auto loopholeType(TagField<Type, FieldIndex>);   
-    friend constexpr size_t loopholeAnnotateNumber(TagField<Type, FieldIndex>);   
+    friend constexpr size_t loopholeAnnotateNumber(TagField<Type, FieldIndex>); 
 };
 
 template <class Type, size_t FieldIndex, class FieldType>
@@ -70,6 +70,7 @@ static constexpr size_t ProcessFieldsImpl () {
     } else if constexpr (AggregateConstructibleFrom<Type, AllFields..., LoopholeUbiq<Type, FieldIndex, AnnotateIndex>>) {
         return ProcessFieldsImpl<Type, FieldIndex+1, 0, AllFields..., LoopholeUbiq<Type, FieldIndex, AnnotateIndex>>();
     } else {
+    // typedef typename Annotate<AllFields...>::something_made_up X;
         [[maybe_unused]]
         Type t{AllFields{}...};
         return FieldIndex;
@@ -105,13 +106,97 @@ constexpr auto GetAnnotations() {
 
 //////////////////////////////////////////////////////////////
 
-template<class T, size_t N>
+template <class Annotation>
+constexpr bool hasAnnotationClassImpl() {
+    return false;   
+}
+
+template <class Annotation, class Head, class...Tail>
+constexpr bool hasAnnotationClassImpl() {
+    if constexpr (std::is_same_v<Annotation, Head>) {
+        return true;
+    } else {
+        return hasAnnotationClassImpl<Annotation, Tail...>();
+    }
+}
+
+template <class Annotation, class Annotations>
+struct hasAnnotationClass;
+
+template <class Annotation, class... Annotations>
+struct hasAnnotationClass<Annotation, Annotate<Annotations...>> { 
+    static constexpr bool has = hasAnnotationClassImpl<Annotation, Annotations...>();
+};
+
+//////////////////////////////////////////////////////////////
+
+template <template <class...> class AnnotationTemplate>
+constexpr bool hasAnnotationTemplateImpl() {
+    return false;   
+}
+
+template <template <class...> class AnnotationTemplate, class Head>
+struct IsSameTemplate {
+    static constexpr bool value = false;
+};
+
+template <template <class...> class AnnotationTemplate, class... Args>
+struct IsSameTemplate<AnnotationTemplate, AnnotationTemplate<Args...>> {
+    static constexpr bool value = true;
+};
+
+template <template <class...> class AnnotationTemplate, class Head, class...Tail>
+constexpr bool hasAnnotationTemplateImpl() {
+    if constexpr (IsSameTemplate<AnnotationTemplate, Head>::value) {
+        return true;
+    } else {
+        return hasAnnotationTemplateImpl<AnnotationTemplate, Tail...>();
+    }
+}
+
+template <template <class...> class AnnotationTemplate, class Annotations>
+struct hasAnnotationTemplate;
+
+template <template <class...> class AnnotationTemplate, class... Annotations>
+struct hasAnnotationTemplate<AnnotationTemplate, Annotate<Annotations...>> { 
+    static constexpr bool has = hasAnnotationTemplateImpl<AnnotationTemplate, Annotations...>();
+};
+
+//////////////////////////////////////////////////////////////
+
+template <template <class...> class AnnotationTemplate, class Head, class...Tail>
+struct getAnnotationTemplateImpl {
+    using type = typename getAnnotationTemplateImpl<AnnotationTemplate, Tail...>::type;
+};
+
+template <template <class...> class AnnotationTemplate, class Head, class...Tail> requires (IsSameTemplate<AnnotationTemplate, Head>::value)
+struct getAnnotationTemplateImpl<AnnotationTemplate, Head, Tail...> {
+    using type = Head;
+};
+
+template <template <class...> class AnnotationTemplate, class Annotations>
+struct getAnnotationTemplate;
+
+template <template <class...> class AnnotationTemplate, class... Annotations>
+struct getAnnotationTemplate<AnnotationTemplate, Annotate<Annotations...>> { 
+    using type = typename getAnnotationTemplateImpl<AnnotationTemplate, Annotations...>::type;
+};
+
+//////////////////////////////////////////////////////////////
+
+template<class T, size_t N, size_t M>
 struct LoopholeGet {
     using Type = decltype(loopholeType(TagField<T, N>{}));
     using Annotations = decltype(GetAnnotations<T, N>());
 
+    template <template <class...> class AnnotationTemplate>
+    static constexpr bool has_annotation_template = hasAnnotationTemplate<AnnotationTemplate, Annotations>::has;
+
     template <class Annotation>
-    static constexpr bool has_annotation_class = /* see below */;
+    static constexpr bool has_annotation_class = hasAnnotationClass<Annotation, Annotations>::has;
+
+    template <template <class...> class AnnotationTemplate>
+    using FindAnnotation = getAnnotationTemplate<AnnotationTemplate, Annotations>::type;
 };
 
 //////////////////////////////////////////////////////////////
@@ -122,6 +207,6 @@ struct Describe {
     static constexpr size_t num_fields = ProcessFields<T>();
 
     template <size_t I>
-    using Field = LoopholeGet<T, I>;
+    using Field = LoopholeGet<T, I, num_fields>;
 };
 
