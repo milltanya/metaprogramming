@@ -195,7 +195,7 @@ struct LoopholeGet {
     template <class Annotation>
     static constexpr bool has_annotation_class = hasAnnotationClass<Annotation, Annotations>::has;
 
-    template <template <class...> class AnnotationTemplate>
+    template <template <class...> class AnnotationTemplate> requires (has_annotation_template<AnnotationTemplate>)
     using FindAnnotation = getAnnotationTemplate<AnnotationTemplate, Annotations>::type;
 };
 
