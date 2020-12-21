@@ -107,12 +107,10 @@ constexpr auto GetAnnotations() {
 //////////////////////////////////////////////////////////////
 
 template <class Annotation, class Annotations>
-struct hasAnnotationClass;
+static constexpr bool hasAnnotationClass;
 
 template <class Annotation, class... Annotations>
-struct hasAnnotationClass<Annotation, Annotate<Annotations...>> { 
-    static constexpr bool has = (std::is_same_v<Annotation, Annotations> || ... || false);
-};
+static constexpr bool hasAnnotationClass<Annotation, Annotate<Annotations...>> = (std::is_same_v<Annotation, Annotations> || ... || false);
 
 //////////////////////////////////////////////////////////////
 
@@ -179,7 +177,7 @@ struct LoopholeGet {
     static constexpr bool has_annotation_template = hasAnnotationTemplate<AnnotationTemplate, Annotations>::has;
 
     template <class Annotation>
-    static constexpr bool has_annotation_class = hasAnnotationClass<Annotation, Annotations>::has;
+    static constexpr bool has_annotation_class = hasAnnotationClass<Annotation, Annotations>;
 
     template <template <class...> class AnnotationTemplate> requires (has_annotation_template<AnnotationTemplate>)
     using FindAnnotation = getAnnotationTemplate<AnnotationTemplate, Annotations>::type;
