@@ -106,26 +106,12 @@ constexpr auto GetAnnotations() {
 
 //////////////////////////////////////////////////////////////
 
-template <class Annotation>
-constexpr bool hasAnnotationClassImpl() {
-    return false;   
-}
-
-template <class Annotation, class Head, class...Tail>
-constexpr bool hasAnnotationClassImpl() {
-    if constexpr (std::is_same_v<Annotation, Head>) {
-        return true;
-    } else {
-        return hasAnnotationClassImpl<Annotation, Tail...>();
-    }
-}
-
 template <class Annotation, class Annotations>
 struct hasAnnotationClass;
 
 template <class Annotation, class... Annotations>
 struct hasAnnotationClass<Annotation, Annotate<Annotations...>> { 
-    static constexpr bool has = hasAnnotationClassImpl<Annotation, Annotations...>();
+    static constexpr bool has = (std::is_same_v<Annotation, Annotations> || ... || false);
 };
 
 //////////////////////////////////////////////////////////////
