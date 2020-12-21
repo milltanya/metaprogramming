@@ -1,5 +1,5 @@
 #include <cstddef>
-#include <tuple>
+#include <type_traits>
 
 
 template <class...>
@@ -70,7 +70,6 @@ static constexpr size_t ProcessFieldsImpl () {
     } else if constexpr (AggregateConstructibleFrom<Type, AllFields..., LoopholeUbiq<Type, FieldIndex, AnnotateIndex>>) {
         return ProcessFieldsImpl<Type, FieldIndex+1, 0, AllFields..., LoopholeUbiq<Type, FieldIndex, AnnotateIndex>>();
     } else {
-    // typedef typename Annotate<AllFields...>::something_made_up X;
         [[maybe_unused]]
         Type t{AllFields{}...};
         return FieldIndex;
@@ -84,24 +83,28 @@ constexpr size_t ProcessFields() {
 
 //////////////////////////////////////////////////////////////
 
+template <class Annotation1, class Annotation2>
+struct ConcatAnnotate;
+
 template <class... Annotations1, class... Annotations2>
-constexpr auto ConcatAnnotate(Annotate<Annotations1...>, Annotate<Annotations2...>) {
-    return Annotate<Annotations1..., Annotations2...>{};
+struct ConcatAnnotate<Annotate<Annotations1...>, Annotate<Annotations2...>> {
+    using type = Annotate<Annotations1..., Annotations2...>;
 };
 
 template <class Type, size_t FieldIndex, size_t AnnotateIndex, size_t AnnotateNumber, class Annotate1>
-constexpr auto ConcatTwoAnnotates() {
-    return Annotate1{};
+struct ConcatAllAnnotations {
+    using type = Annotate1;
 };
 
 template <class Type, size_t FieldIndex, size_t AnnotateIndex, size_t AnnotateNumber, class Annotate1> requires (AnnotateIndex < AnnotateNumber)
-constexpr auto ConcatTwoAnnotates() {
-    return ConcatTwoAnnotates<Type, FieldIndex, AnnotateIndex+1, AnnotateNumber, decltype(ConcatAnnotate(Annotate1{}, loopholeAnnotate(TagAnnotate<Type, FieldIndex, AnnotateIndex>())))>();
+struct ConcatAllAnnotations<Type, FieldIndex, AnnotateIndex, AnnotateNumber, Annotate1> {
+    using current = typename ConcatAnnotate<Annotate1, decltype(loopholeAnnotate(TagAnnotate<Type, FieldIndex, AnnotateIndex>()))>::type;
+    using type = typename ConcatAllAnnotations<Type, FieldIndex, AnnotateIndex+1, AnnotateNumber, current>::type;
 };
 
 template <class Type, size_t FieldIndex>
-constexpr auto GetAnnotations() {
-    return ConcatTwoAnnotates<Type, FieldIndex, 0, loopholeAnnotateNumber(TagField<Type, FieldIndex>{}), Annotate<>>();
+struct GetAnnotations {
+    using type = typename ConcatAllAnnotations<Type, FieldIndex, 0, loopholeAnnotateNumber(TagField<Type, FieldIndex>{}), Annotate<>>::type;
 };
 
 //////////////////////////////////////////////////////////////
@@ -151,7 +154,7 @@ struct getAnnotationTemplate<AnnotationTemplate, Annotate<Annotations...>> {
 template<class T, size_t N, size_t M>
 struct LoopholeGet {
     using Type = decltype(loopholeType(TagField<T, N>{}));
-    using Annotations = decltype(GetAnnotations<T, N>());
+    using Annotations = typename GetAnnotations<T, N>::type;
 
     template <template <class...> class AnnotationTemplate>
     static constexpr bool has_annotation_template = hasAnnotationTemplate<AnnotationTemplate, Annotations>;
