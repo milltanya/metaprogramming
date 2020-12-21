@@ -107,44 +107,24 @@ constexpr auto GetAnnotations() {
 //////////////////////////////////////////////////////////////
 
 template <class Annotation, class Annotations>
-static constexpr bool hasAnnotationClass;
+constexpr bool hasAnnotationClass;
 
 template <class Annotation, class... Annotations>
-static constexpr bool hasAnnotationClass<Annotation, Annotate<Annotations...>> = (std::is_same_v<Annotation, Annotations> || ... || false);
+constexpr bool hasAnnotationClass<Annotation, Annotate<Annotations...>> = (std::is_same_v<Annotation, Annotations> || ... || false);
 
 //////////////////////////////////////////////////////////////
 
-template <template <class...> class AnnotationTemplate>
-constexpr bool hasAnnotationTemplateImpl() {
-    return false;   
-}
+template <template <class...> class Template, class Class>
+constexpr bool IsSameTemplate  = false;
 
-template <template <class...> class AnnotationTemplate, class Head>
-struct IsSameTemplate {
-    static constexpr bool value = false;
-};
-
-template <template <class...> class AnnotationTemplate, class... Args>
-struct IsSameTemplate<AnnotationTemplate, AnnotationTemplate<Args...>> {
-    static constexpr bool value = true;
-};
-
-template <template <class...> class AnnotationTemplate, class Head, class...Tail>
-constexpr bool hasAnnotationTemplateImpl() {
-    if constexpr (IsSameTemplate<AnnotationTemplate, Head>::value) {
-        return true;
-    } else {
-        return hasAnnotationTemplateImpl<AnnotationTemplate, Tail...>();
-    }
-}
+template <template <class...> class Template, class... Args>
+constexpr bool IsSameTemplate<Template, Template<Args...>> = true;
 
 template <template <class...> class AnnotationTemplate, class Annotations>
-struct hasAnnotationTemplate;
+constexpr bool hasAnnotationTemplate;
 
 template <template <class...> class AnnotationTemplate, class... Annotations>
-struct hasAnnotationTemplate<AnnotationTemplate, Annotate<Annotations...>> { 
-    static constexpr bool has = hasAnnotationTemplateImpl<AnnotationTemplate, Annotations...>();
-};
+constexpr bool hasAnnotationTemplate<AnnotationTemplate, Annotate<Annotations...>> = (IsSameTemplate<AnnotationTemplate, Annotations> || ... || false);
 
 //////////////////////////////////////////////////////////////
 
@@ -153,7 +133,7 @@ struct getAnnotationTemplateImpl {
     using type = typename getAnnotationTemplateImpl<AnnotationTemplate, Tail...>::type;
 };
 
-template <template <class...> class AnnotationTemplate, class Head, class...Tail> requires (IsSameTemplate<AnnotationTemplate, Head>::value)
+template <template <class...> class AnnotationTemplate, class Head, class...Tail> requires (IsSameTemplate<AnnotationTemplate, Head>)
 struct getAnnotationTemplateImpl<AnnotationTemplate, Head, Tail...> {
     using type = Head;
 };
@@ -174,7 +154,7 @@ struct LoopholeGet {
     using Annotations = decltype(GetAnnotations<T, N>());
 
     template <template <class...> class AnnotationTemplate>
-    static constexpr bool has_annotation_template = hasAnnotationTemplate<AnnotationTemplate, Annotations>::has;
+    static constexpr bool has_annotation_template = hasAnnotationTemplate<AnnotationTemplate, Annotations>;
 
     template <class Annotation>
     static constexpr bool has_annotation_class = hasAnnotationClass<Annotation, Annotations>;
