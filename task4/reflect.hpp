@@ -152,7 +152,10 @@ struct getAnnotationTemplate<AnnotationTemplate, Annotate<Annotations...>> {
 //////////////////////////////////////////////////////////////
 
 template<class T, size_t N, size_t M>
-struct LoopholeGet {
+struct LoopholeGet;
+
+template<class T, size_t N, size_t M> requires (N < M)
+struct LoopholeGet<T, N, M> {
     using Type = decltype(loopholeType(TagField<T, N>{}));
     using Annotations = typename GetAnnotations<T, N>::type;
 
